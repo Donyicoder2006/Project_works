@@ -14,7 +14,7 @@ body:json {
   {
     "year": 2024,
     "month": 10,
-    "sales_qty": 15.0,
+    "sales_qty": 1000.0,
     "sales_amount": 850.0,
     "Ratings": 4.0,
     "City": "Bangalore",
@@ -25,4 +25,8 @@ body:json {
 settings {
   encodeUrl: true
   timeout: 0
+}
+
+docs {
+  (Where Success = 1 if Ratings >= 3.7 AND sales_amount >= 700)
 }
