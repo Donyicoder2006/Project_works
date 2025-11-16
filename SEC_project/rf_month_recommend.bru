@@ -1,0 +1,27 @@
+meta {
+  name: rf_month_recommend
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base}}predict/rf_month_recommend
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "year": 2024,
+    "sales_qty": 15.0,
+    "sales_amount": 1200.0,
+    "Ratings": 4.5,
+    "City": "Kolkata",
+    "Cuisine": "Chinese"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
