@@ -2,6 +2,7 @@ import { CalendarDate } from "@internationalized/date";
 
 export type mainFormData = {
   city: string;
+  location: string;
   cuisine: string;
   date: CalendarDate;
   salesQuantity: number;

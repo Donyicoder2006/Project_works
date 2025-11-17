@@ -1,16 +1,14 @@
-import React from "react";
-import { Controller, UseFormReturn } from "react-hook-form";
+"use client";
+import { Controller, useFormContext } from "react-hook-form";
 import { mainFormData } from "../types/main-form-data";
-import { Button, DatePicker, Input, NumberInput } from "@heroui/react";
+import { Button, DatePicker, Input } from "@heroui/react";
 
 interface Props {
-  form: UseFormReturn<mainFormData, any, mainFormData>;
+  onSubmit: () => void;
 }
 
-const MainForm = ({ form }: Props) => {
-  const { handleSubmit, register, control } = form;
-
-  const onSubmit = () => {};
+const MainForm = ({ onSubmit }: Props) => {
+  const { handleSubmit, register, control } = useFormContext<mainFormData>();
 
   return (
     <div className="">
@@ -34,6 +32,13 @@ const MainForm = ({ form }: Props) => {
             type="text"
             label="Cuisine"
             {...register("cuisine", { required: true })}
+          />
+        </div>
+        <div className="flex space-x-2">
+          <Input
+            type="text"
+            label="Location"
+            {...register("location", { required: true })}
           />
           <Input
             type="text"
