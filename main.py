@@ -6,13 +6,17 @@ import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 # --- ENV/Warning Mute ---
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 warnings.filterwarnings("ignore", category=UserWarning)
-
+load_dotenv()
 # --- Lazy TF Import ---
 from tensorflow.keras.models import load_model
+
+# --- Gemini Integration ---
+import google.generativeai as genai
 
 # --- Model Cache ---
 models = {}
@@ -25,7 +29,16 @@ async def lifespan(app: FastAPI):
     Handles artifact loading and clears cache on shutdown.
     """
     try:
-        print("[*] Locking and loading models...")
+        print("[*] Locking and loading analytical models...")
+
+        # Check for API Key
+        if "GEMINI_API_KEY" not in os.environ:
+            print(
+                "[-] WARNING: GEMINI_API_KEY not found in environment variables. Generative features will fail."
+            )
+        else:
+            genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+            print("[+] Gemini configured.")
 
         models["ANN"] = load_model("classificationd_model.keras")
         models["DT"] = joblib.load("regression_model.joblib")
@@ -58,7 +71,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Model-API-Hybrid",
-    description="Endpoints for ANN Feedback, DT Sales, RF Ratings, Monthly Sales & Success Prob.",
+    description="Endpoints for ANN Feedback, DT Sales, RF Ratings, Monthly Sales & Success Prob + Gemini Insight.",
     lifespan=lifespan,
 )
 
@@ -367,9 +380,6 @@ async def predict_market_matrix(features: MatrixFeatures):
     Merged Scenario: Generates a full probability matrix.
     Iterates all 12 months against the City Model to find the probability
     of EVERY city being the target for EVERY month.
-    Returns:
-        - market_matrix: City -> { Month: Probability }
-        - city_global_probabilities: City -> Average Probability across Year
     """
     if "CITY_RF" not in models or "LE_CITY" not in models:
         raise HTTPException(
@@ -384,7 +394,6 @@ async def predict_market_matrix(features: MatrixFeatures):
         all_cities = models["LE_CITY"].classes_
 
         # 3. Create a batch DataFrame for 12 months
-        # We vectorize this: 12 rows, one for each month.
         batch_data = []
         for m in range(1, 13):
             batch_data.append(
@@ -400,27 +409,21 @@ async def predict_market_matrix(features: MatrixFeatures):
 
         df_batch = pd.DataFrame(batch_data)
 
-        # 4. Run Inference ONCE for the batch (Shape: 12 x N_Cities)
-        # all_probs contains 12 arrays (one per month), each having probabilities for all cities
+        # 4. Run Inference ONCE for the batch
         all_probs = models["CITY_RF"].predict_proba(df_batch)
 
-        # 5. Calculate Global Aggregates (Average probability across 12 months)
-        # axis=0 collapses the 12 months into a single mean array of shape (N_cities,)
-        # This represents the "whole" probability for the city across the year.
+        # 5. Calculate Global Aggregates
         avg_city_probs = np.mean(all_probs, axis=0)
 
         global_metrics = {
             city: round(prob * 100, 2) for city, prob in zip(all_cities, avg_city_probs)
         }
 
-        # 6. Construct the Grid (Transposed: City -> Month)
-        # Initialize dict for every city
+        # 6. Construct the Grid
         matrix = {city: {} for city in all_cities}
 
         for month_idx, month_probs in enumerate(all_probs):
             month_key = f"Month_{month_idx + 1}"
-
-            # Map probabilities to cities for this specific month
             for city_idx, city_name in enumerate(all_cities):
                 prob = month_probs[city_idx]
                 matrix[city_name][month_key] = round(prob * 100, 2)
@@ -435,7 +438,7 @@ async def predict_market_matrix(features: MatrixFeatures):
         )
 
 
-# --- NEW UNIFIED SECTION ---
+# --- NEW UNIFIED SECTION WITH GEMINI ---
 
 
 class UnifiedFeatures(BaseModel):
@@ -455,7 +458,7 @@ class UnifiedFeatures(BaseModel):
 @app.post("/predict/unified")
 async def predict_unified(features: UnifiedFeatures):
     """
-    Runs all models (except redundant recommenders) in one go.
+    Runs all models + Gemini Analysis.
     """
     # Check model availability
     required_models = ["ANN", "DT", "RATING_RF", "SALES_RF", "SUCCESS_RF", "CITY_RF"]
@@ -583,6 +586,40 @@ async def predict_unified(features: UnifiedFeatures):
             "city_global_probabilities": global_metrics,
         }
 
+        # --- 7. Gemini AI Analysis ---
+        try:
+            if "GEMINI_API_KEY" in os.environ:
+                # Prepare the prompt
+                prompt_text = f"""
+                Act as a data-driven business consultant for a restaurant chain. 
+                Analyze the following restaurant data and predictive model outputs.
+                
+                Restaurant Input: {features.dict()}
+                
+                Model Predictions:
+                - Feedback Sentiment: {results["feedback_prediction"]}
+                - High Sales Potential: {results["high_sales_prediction"]}
+                - Predicted Rating: {results["rf_rating_prediction"]}
+                - Monthly Sales Forecast: {results["rf_monthly_sales"]}
+                - Success Probability: {results["rf_success_prob"]}
+                
+                Provide a concise, actionable recommendation (max 3 sentences) on how to improve the business or maintain success. Focus on the relationship between ratings, sales, and cuisine fit for the location.
+                """
+
+                model = genai.GenerativeModel("models/gemini-flash-latest")
+                gemini_response = await model.generate_content_async(prompt_text)
+                results["gemini_recommendation"] = gemini_response.text.strip()
+            else:
+                results["gemini_recommendation"] = (
+                    "API Key missing. AI analysis skipped."
+                )
+
+        except Exception as g_ex:
+            print(f"[-] Gemini API Error: {g_ex}")
+            results["gemini_recommendation"] = (
+                "AI analysis failed due to an internal error."
+            )
+
         return results
 
     except ValueError as e:
@@ -596,4 +633,3 @@ if __name__ == "__main__":
 
     print("[*] Starting Uvicorn server...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

@@ -1,7 +1,7 @@
-from tensorflow.keras.models import load_model
 import os
 import warnings
-import joblib
+
+# import joblib # Commented out for lightweight mock
 import numpy as np
 import pandas as pd
 from contextlib import asynccontextmanager
@@ -12,53 +12,25 @@ from pydantic import BaseModel
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# --- Lazy TF Import ---
-
-# --- Model Cache ---
-models = {}
+# --- Mock Model Cache ---
+models = {"MOCK": True}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Load all models into the 'models' dict on startup.
-    Handles artifact loading and clears cache on shutdown.
+    Mock lifespan. No heavy lifting here.
     """
-    try:
-        print("[*] Locking and loading models...")
-
-        # models["ANN"] = load_model("classificationd_model.keras")
-        # models["DT"] = joblib.load("regression_model.joblib")
-        # models["X_ENC"] = joblib.load("restaurant_encoder.joblib")
-
-        # fb_enc = joblib.load("feedback_encoder.joblib")
-        # models["FB_CLASSES"] = fb_enc.categories_[0]
-
-        # models["RATING_RF"] = joblib.load("model_ratings.pkl")
-        # models["SALES_RF"] = joblib.load("model_sales.pkl")
-        # models["SUCCESS_RF"] = joblib.load("model_success.pkl")
-        # models["CITY_RF"] = joblib.load("model_city.pkl")
-        # models["MONTH_RF"] = joblib.load("model_month.pkl")
-
-        # models["LE_CITY"] = joblib.load("encoder_city.pkl")
-        # models["LE_CUISINE"] = joblib.load("encoder_cuisine.pkl")
-
-        print(f"[+] All systems go. {len(models)} artifacts loaded.")
-    except FileNotFoundError as e:
-        print(f"[-] FATAL: Missing artifact. Check your directory. {e}")
-    except Exception as e:
-        print(f"[-] FATAL: Model load failed. {e}")
-
+    print("[*] Mock Mode: Bypass enabled. No models loaded.")
+    print("[+] System ready for frontend dev.")
     yield
-
-    # --- Shutdown ---
-    print("[*] Clearing model cache...")
+    print("[*] Shutting down mock server...")
     models.clear()
 
 
 app = FastAPI(
-    title="Model-API-Hybrid",
-    description="Endpoints for ANN Feedback, DT Sales, RF Ratings, Monthly Sales & Success Prob.",
+    title="Model-API-Hybrid (MOCK)",
+    description="Mock Endpoints for Frontend Dev. No ML/AI running.",
     lifespan=lifespan,
 )
 
@@ -76,8 +48,6 @@ class SalesFeatures(BaseModel):
 
 
 class RatingFeatures(BaseModel):
-    """Features to predict RF_RATING (Scenario 1)"""
-
     year: int
     month: int
     sales_qty: float
@@ -87,8 +57,6 @@ class RatingFeatures(BaseModel):
 
 
 class SalesPredictFeatures(BaseModel):
-    """Features to predict RF_MONTHLY_SALES (Scenario 2)"""
-
     year: int
     month: int
     sales_qty: float
@@ -98,8 +66,6 @@ class SalesPredictFeatures(BaseModel):
 
 
 class CityRecommendFeatures(BaseModel):
-    """Features to predict RF_CITY_RECOMMEND (Scenario 3)"""
-
     year: int
     month: int
     sales_qty: float
@@ -109,8 +75,6 @@ class CityRecommendFeatures(BaseModel):
 
 
 class SuccessFeatures(BaseModel):
-    """Features to predict RF_SUCCESS_PROB (Scenario 4)"""
-
     year: int
     month: int
     sales_qty: float
@@ -121,8 +85,6 @@ class SuccessFeatures(BaseModel):
 
 
 class MonthRecommendFeatures(BaseModel):
-    """Features to predict RF_MONTH_RECOMMEND (Scenario 5)"""
-
     year: int
     sales_qty: float
     sales_amount: float
@@ -131,141 +93,60 @@ class MonthRecommendFeatures(BaseModel):
     Cuisine: str
 
 
+class MatrixFeatures(BaseModel):
+    year: int
+    sales_qty: float
+    sales_amount: float
+    Ratings: float
+    Cuisine: str
+
+
+class UnifiedFeatures(BaseModel):
+    Resturant_Name: str
+    Cuisine: str
+    Location: str
+    City: str
+    year: int
+    month: int
+    sales_qty: float
+    sales_amount: float
+    Ratings: float
+
+
 # --- Core Endpoints ---
 
 
 @app.get("/health")
 async def health_check():
-    """Health check to verify model loading."""
-    if not models:
-        raise HTTPException(
-            status_code=503, detail="Models are offline or failed to load"
-        )
-    return {"status": "online", "models_loaded": list(models.keys())}
+    return {"status": "online", "models_loaded": ["MOCK_MODE"]}
 
 
 @app.post("/predict/feedback")
 async def predict_feedback(features: RestaurantFeatures):
-    # if "ANN" not in models:
-    #     raise HTTPException(status_code=503, detail="ANN Model unavailable")
     return {"feedback_prediction": "median feedback"}
-    # try:
-    #     data_df = pd.DataFrame([features.dict()])
-    #     data_df = data_df[["Resturant_Name", "Cuisine", "Location", "City"]]
-    #     encoded_data = models["X_ENC"].transform(data_df)
-    #     prediction_probs = models["ANN"].predict(encoded_data, verbose=0)
-    #     predicted_index = np.argmax(prediction_probs[0])
-    #     predicted_class = models["FB_CLASSES"][predicted_index]
-    #     # return {"feedback_prediction": predicted_class}
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/predict/sales")
 async def predict_sales(features: SalesFeatures):
-    # if "DT" not in models:
-    #     raise HTTPException(status_code=503, detail="DT Model unavailable")
     return {"high_sales_prediction": 1}
-    # try:
-    #     data_df = pd.DataFrame([features.dict()])
-    #     data_df = data_df[["sales_qty", "Ratings"]]
-    #     prediction = models["DT"].predict(data_df)
-    #     # return {"high_sales_prediction": int(prediction[0])}
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
 
 
-# --- Business Logic RF Endpoints (Refactored) ---
+# --- Business Logic RF Endpoints (Mocked) ---
 
 
 @app.post("/predict/rf_rating")
 async def predict_rf_rating(features: RatingFeatures):
-    """Scenario 1: Predicts Rating based on Sales volume."""
-    # if "RATING_RF" not in models:
-    #     raise HTTPException(
-    #         status_code=503, detail="Rating RF Model unavailable")
-
     return {"rf_rating_prediction": 3.550999999999998}
-
-    # try:
-    #     city_enc = models["LE_CITY"].transform([features.City])[0]
-    #     cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
-
-    #     # Training Order: year, month, sales_qty, sales_amount, City_encoded, Cuisine_encoded
-    #     data = pd.DataFrame(
-    #         [
-    #             {
-    #                 "year": features.year,
-    #                 "month": features.month,
-    #                 "sales_qty": features.sales_qty,
-    #                 "sales_amount": features.sales_amount,
-    #                 "City_encoded": city_enc,
-    #                 "Cuisine_encoded": cuisine_enc,
-    #             }
-    #         ]
-    #     )
-
-    #     prediction = models["RATING_RF"].predict(data)
-    #     # return {"rf_rating_prediction": float(prediction[0])}
-
-    # except ValueError as e:
-    #     # Catch bad input (e.g., "City" or "Cuisine" not in encoder)
-    #     raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500, detail=f"RF Rating Error: {str(e)}")
 
 
 @app.post("/predict/rf_monthly_sales")
 async def predict_rf_monthly_sales(features: SalesPredictFeatures):
-    """Scenario 2: Predicts Sales Amount based on Rating."""
-    # if "SALES_RF" not in models:
-    #     raise HTTPException(
-    #         status_code=503, detail="Sales RF Model unavailable")
-
     return {"rf_sales_prediction": 24064.48}
-
-    # try:
-    #     city_enc = models["LE_CITY"].transform([features.City])[0]
-    #     cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
-
-    #     # Training Order: year, month, sales_qty, Ratings, City_encoded, Cuisine_encoded
-    #     data = pd.DataFrame(
-    #         [
-    #             {
-    #                 "year": features.year,
-    #                 "month": features.month,
-    #                 "sales_qty": features.sales_qty,
-    #                 "Ratings": features.Ratings,
-    #                 "City_encoded": city_enc,
-    #                 "Cuisine_encoded": cuisine_enc,
-    #             }
-    #         ]
-    #     )
-
-    #     prediction = models["SALES_RF"].predict(data)
-    #     return {"rf_sales_prediction": 24064.48}
-
-    # except ValueError as e:
-    #     raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500, detail=f"RF Sales Error: {str(e)}")
 
 
 @app.post("/predict/rf_city_recommend")
 async def predict_rf_city_recommend(features: CityRecommendFeatures):
-    """Scenario 3: Recommends Top 3 Cities based on market data."""
-    # if "CITY_RF" not in models or "LE_CITY" not in models:
-    #     raise HTTPException(
-    #         status_code=503, detail="City RF Model or Encoders unavailable"
-    #     )
-
     return {
-        # "top_3_recommendations": [
-        #     {"city": city, "probability_percent": prob}
-        #     for city, prob in zip(top3_cities, top3_probs)
-        # ]
         "top_3_recommendations": [
             {"city": city, "probability_percent": prob}
             for city, prob in [
@@ -276,134 +157,1264 @@ async def predict_rf_city_recommend(features: CityRecommendFeatures):
         ]
     }
 
-    # try:
-    #     # Note: features.City is NOT used here, as it's the target.
-    #     cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
-
-    #     # Training Order: Cuisine_encoded, Ratings, sales_qty, sales_amount, year, month
-    #     data = pd.DataFrame(
-    #         [
-    #             {
-    #                 "Cuisine_encoded": cuisine_enc,
-    #                 "Ratings": features.Ratings,
-    #                 "sales_qty": features.sales_qty,
-    #                 "sales_amount": features.sales_amount,
-    #                 "year": features.year,
-    #                 "month": features.month,
-    #             }
-    #         ]
-    #     )
-
-    #     probs = models["CITY_RF"].predict_proba(data)[0]
-
-    #     top3_idx = np.argsort(probs)[-3:][::-1]
-    #     top3_cities = models["LE_CITY"].inverse_transform(top3_idx)
-    #     top3_probs = (probs[top3_idx] * 100).round(2)
-
-    # except ValueError as e:
-    #     raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500, detail=f"City Model Error: {str(e)}")
-
 
 @app.post("/predict/rf_success_prob")
 async def predict_rf_success_prob(features: SuccessFeatures):
-    """Scenario 4: Predicts Success Probability (%) based on all stats."""
-    # if "SUCCESS_RF" not in models:
-    #     raise HTTPException(
-    #         status_code=503, detail="Success RF Model unavailable")
-
     return {
-        # "success_probability_percentage": round(float(success_prob), 2),
-        # "is_successful": bool(success_prob > 50),
         "success_probability_percentage": 97.67,
         "is_successful": True,
     }
 
-    # try:
-    #     city_enc = models["LE_CITY"].transform([features.City])[0]
-    #     cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
-
-    #     # Training Order: Ratings, sales_qty, sales_amount, City_encoded, Cuisine_encoded, year, month
-    #     data = pd.DataFrame(
-    #         [
-    #             {
-    #                 "Ratings": features.Ratings,
-    #                 "sales_qty": features.sales_qty,
-    #                 "sales_amount": features.sales_amount,
-    #                 "City_encoded": city_enc,
-    #                 "Cuisine_encoded": cuisine_enc,
-    #                 "year": features.year,
-    #                 "month": features.month,
-    #             }
-    #         ]
-    #     )
-
-    #     probs = models["SUCCESS_RF"].predict_proba(data)[0]
-    #     # success_prob = probs[1] * 100  # Prob of class 1 (Success)
-    #     success_prob = probs[1] * 100  # Prob of class 1 (Success)
-
-    # except ValueError as e:
-    #     raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500, detail=f"Success Model Error: {str(e)}")
-
 
 @app.post("/predict/rf_month_recommend")
 async def predict_rf_month_recommend(features: MonthRecommendFeatures):
-    """Scenario 5: Recommends Top 3 Months based on market data."""
-    # if "MONTH_RF" not in models:
-    #     raise HTTPException(
-    #         status_code=503, detail="Month RF Model unavailable")
-
     return {
         "top_3_month_recommendations": [
             {"month": int(month), "probability_percent": prob}
-            # for month, prob in zip(top3_months, top3_probs)
             for month, prob in [(3, 22.33), (5, 19.67), (1, 15.33)]
         ]
     }
 
 
-#    try:
-#         # Note: features.month is NOT used here, as it's the target.
-#         city_enc = models["LE_CITY"].transform([features.City])[0]
-#         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
+@app.post("/predict/market_matrix")
+async def predict_market_matrix(features: MatrixFeatures):
+    """
+    Mocked Market Matrix Response
+    """
+    return {
+        "market_matrix": {
+            "Ahmedabad": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Allahabad": {
+                "Month_1": 0.0,
+                "Month_2": 0.67,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Amritsar": {
+                "Month_1": 0.33,
+                "Month_2": 0.33,
+                "Month_3": 0.33,
+                "Month_4": 0.33,
+                "Month_5": 0.33,
+                "Month_6": 0.33,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Bangalore": {
+                "Month_1": 6.67,
+                "Month_2": 8.0,
+                "Month_3": 7.0,
+                "Month_4": 6.33,
+                "Month_5": 6.33,
+                "Month_6": 7.33,
+                "Month_7": 9.67,
+                "Month_8": 11.0,
+                "Month_9": 13.0,
+                "Month_10": 14.67,
+                "Month_11": 16.33,
+                "Month_12": 14.0,
+            },
+            "Bengaluru": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Bhopal": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.33,
+                "Month_7": 0.33,
+                "Month_8": 0.33,
+                "Month_9": 0.67,
+                "Month_10": 0.33,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Bhubeneshwar": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Bikenere": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 1.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.33,
+                "Month_7": 2.33,
+                "Month_8": 0.33,
+                "Month_9": 0.33,
+                "Month_10": 0.33,
+                "Month_11": 0.33,
+                "Month_12": 0.0,
+            },
+            "Chennai": {
+                "Month_1": 0.67,
+                "Month_2": 2.33,
+                "Month_3": 1.0,
+                "Month_4": 0.67,
+                "Month_5": 0.33,
+                "Month_6": 0.67,
+                "Month_7": 1.0,
+                "Month_8": 1.67,
+                "Month_9": 1.67,
+                "Month_10": 1.67,
+                "Month_11": 2.0,
+                "Month_12": 2.0,
+            },
+            "Darjeeling": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Delhi": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Delhi NCR": {
+                "Month_1": 9.0,
+                "Month_2": 7.33,
+                "Month_3": 6.33,
+                "Month_4": 6.0,
+                "Month_5": 4.67,
+                "Month_6": 4.0,
+                "Month_7": 4.0,
+                "Month_8": 6.0,
+                "Month_9": 6.0,
+                "Month_10": 7.0,
+                "Month_11": 6.0,
+                "Month_12": 10.33,
+            },
+            "Gandhinagar": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Gangtok": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Hyderabad": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Itanagar": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Jamshedpur": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Kanpur": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Kochi": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Kolkata": {
+                "Month_1": 80.67,
+                "Month_2": 78.67,
+                "Month_3": 80.67,
+                "Month_4": 85.33,
+                "Month_5": 87.67,
+                "Month_6": 86.33,
+                "Month_7": 82.0,
+                "Month_8": 80.33,
+                "Month_9": 77.67,
+                "Month_10": 75.67,
+                "Month_11": 75.0,
+                "Month_12": 73.33,
+            },
+            "Kota": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Lucknow": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Mangalore": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Mysore": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Nanital": {
+                "Month_1": 1.0,
+                "Month_2": 1.33,
+                "Month_3": 2.33,
+                "Month_4": 0.33,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Nashik": {
+                "Month_1": 1.0,
+                "Month_2": 1.33,
+                "Month_3": 1.33,
+                "Month_4": 0.67,
+                "Month_5": 0.33,
+                "Month_6": 0.33,
+                "Month_7": 0.33,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Panaji": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Patna": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Port-Blair": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.33,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Pune": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Shimla": {
+                "Month_1": 0.67,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Siliguri": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.33,
+                "Month_5": 0.33,
+                "Month_6": 0.33,
+                "Month_7": 0.33,
+                "Month_8": 0.33,
+                "Month_9": 0.33,
+                "Month_10": 0.33,
+                "Month_11": 0.33,
+                "Month_12": 0.33,
+            },
+            "Srinagar": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Surat": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Trichy": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Trivandrum": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Vaddodra": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Varanasi": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Vellore": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+            "Vijaywada": {
+                "Month_1": 0.0,
+                "Month_2": 0.0,
+                "Month_3": 0.0,
+                "Month_4": 0.0,
+                "Month_5": 0.0,
+                "Month_6": 0.0,
+                "Month_7": 0.0,
+                "Month_8": 0.0,
+                "Month_9": 0.0,
+                "Month_10": 0.0,
+                "Month_11": 0.0,
+                "Month_12": 0.0,
+            },
+        },
+        "city_global_probabilities": {
+            "Ahmedabad": 0.0,
+            "Allahabad": 0.06,
+            "Amritsar": 0.17,
+            "Bangalore": 10.03,
+            "Bengaluru": 0.0,
+            "Bhopal": 0.17,
+            "Bhubeneshwar": 0.0,
+            "Bikenere": 0.42,
+            "Chennai": 1.31,
+            "Darjeeling": 0.0,
+            "Delhi": 0.0,
+            "Delhi NCR": 6.39,
+            "Gandhinagar": 0.0,
+            "Gangtok": 0.0,
+            "Hyderabad": 0.0,
+            "Itanagar": 0.0,
+            "Jamshedpur": 0.0,
+            "Kanpur": 0.0,
+            "Kochi": 0.0,
+            "Kolkata": 80.28,
+            "Kota": 0.0,
+            "Lucknow": 0.0,
+            "Mangalore": 0.0,
+            "Mysore": 0.0,
+            "Nanital": 0.42,
+            "Nashik": 0.44,
+            "Panaji": 0.0,
+            "Patna": 0.0,
+            "Port-Blair": 0.03,
+            "Pune": 0.0,
+            "Shimla": 0.06,
+            "Siliguri": 0.25,
+            "Srinagar": 0.0,
+            "Surat": 0.0,
+            "Trichy": 0.0,
+            "Trivandrum": 0.0,
+            "Vaddodra": 0.0,
+            "Varanasi": 0.0,
+            "Vellore": 0.0,
+            "Vijaywada": 0.0,
+        },
+    }
 
-#         # Training Order: Ratings, sales_qty, sales_amount, City_encoded, Cuisine_encoded, year
-#         data = pd.DataFrame(
-#             [
-#                 {
-#                     "Ratings": features.Ratings,
-#                     "sales_qty": features.sales_qty,
-#                     "sales_amount": features.sales_amount,
-#                     "City_encoded": city_enc,
-#                     "Cuisine_encoded": cuisine_enc,
-#                     "year": features.year,
-#                 }
-#             ]
-#         )
 
-#         probs = models["MONTH_RF"].predict_proba(data)[0]
-
-#         # Model predicts classes 1-12. Probs array is 0-indexed.
-#         top3_idx = np.argsort(probs)[-3:][::-1]
-#         top3_months = top3_idx + 1  # Convert 0-11 index to 1-12 month
-#         top3_probs = (probs[top3_idx] * 100).round(2)
-
-
-#     except ValueError as e:
-#         raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=500, detail=f"Month Model Error: {str(e)}")
+@app.post("/predict/unified")
+async def predict_unified(features: UnifiedFeatures):
+    """
+    Hardcoded Mock Response for Frontend Testing
+    """
+    return {
+        "feedback_prediction": {"feedback_prediction": "median feedback"},
+        "high_sales_prediction": {"high_sales_prediction": 1},
+        "rf_rating_prediction": {"rf_rating_prediction": 4.072396408839999},
+        "rf_monthly_sales": {"rf_sales_prediction": 795468.28},
+        "rf_success_prob": {
+            "success_probability_percentage": 100.0,
+            "is_successful": True,
+        },
+        "market_matrix": {
+            "market_matrix": {
+                "Ahmedabad": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Allahabad": {
+                    "Month_1": 0.67,
+                    "Month_2": 1.67,
+                    "Month_3": 0.33,
+                    "Month_4": 0.33,
+                    "Month_5": 0.33,
+                    "Month_6": 0.33,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Amritsar": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Bangalore": {
+                    "Month_1": 8.67,
+                    "Month_2": 8.33,
+                    "Month_3": 8.0,
+                    "Month_4": 9.0,
+                    "Month_5": 9.0,
+                    "Month_6": 9.33,
+                    "Month_7": 13.0,
+                    "Month_8": 13.0,
+                    "Month_9": 16.33,
+                    "Month_10": 18.33,
+                    "Month_11": 22.67,
+                    "Month_12": 19.67,
+                },
+                "Bengaluru": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Bhopal": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Bhubeneshwar": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Bikenere": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 1.0,
+                    "Month_8": 0.33,
+                    "Month_9": 0.33,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Chennai": {
+                    "Month_1": 1.67,
+                    "Month_2": 2.67,
+                    "Month_3": 2.67,
+                    "Month_4": 3.0,
+                    "Month_5": 2.67,
+                    "Month_6": 3.33,
+                    "Month_7": 3.33,
+                    "Month_8": 4.0,
+                    "Month_9": 3.33,
+                    "Month_10": 3.33,
+                    "Month_11": 3.0,
+                    "Month_12": 2.33,
+                },
+                "Darjeeling": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Delhi": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Delhi NCR": {
+                    "Month_1": 20.67,
+                    "Month_2": 17.33,
+                    "Month_3": 15.0,
+                    "Month_4": 14.0,
+                    "Month_5": 12.67,
+                    "Month_6": 10.33,
+                    "Month_7": 10.0,
+                    "Month_8": 10.0,
+                    "Month_9": 11.0,
+                    "Month_10": 11.33,
+                    "Month_11": 12.67,
+                    "Month_12": 19.67,
+                },
+                "Gandhinagar": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.33,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Gangtok": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Hyderabad": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Itanagar": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Jamshedpur": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Kanpur": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Kochi": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Kolkata": {
+                    "Month_1": 67.0,
+                    "Month_2": 68.67,
+                    "Month_3": 72.33,
+                    "Month_4": 72.67,
+                    "Month_5": 75.0,
+                    "Month_6": 76.33,
+                    "Month_7": 72.0,
+                    "Month_8": 72.0,
+                    "Month_9": 68.33,
+                    "Month_10": 66.67,
+                    "Month_11": 61.33,
+                    "Month_12": 58.33,
+                },
+                "Kota": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Lucknow": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Mangalore": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Mysore": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Nanital": {
+                    "Month_1": 1.0,
+                    "Month_2": 1.33,
+                    "Month_3": 1.67,
+                    "Month_4": 0.67,
+                    "Month_5": 0.33,
+                    "Month_6": 0.33,
+                    "Month_7": 0.33,
+                    "Month_8": 0.33,
+                    "Month_9": 0.33,
+                    "Month_10": 0.33,
+                    "Month_11": 0.33,
+                    "Month_12": 0.0,
+                },
+                "Nashik": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.33,
+                    "Month_8": 0.33,
+                    "Month_9": 0.33,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Panaji": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Patna": {
+                    "Month_1": 0.33,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Port-Blair": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Pune": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Shimla": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Siliguri": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Srinagar": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Surat": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Trichy": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Trivandrum": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Vaddodra": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Varanasi": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Vellore": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+                "Vijaywada": {
+                    "Month_1": 0.0,
+                    "Month_2": 0.0,
+                    "Month_3": 0.0,
+                    "Month_4": 0.0,
+                    "Month_5": 0.0,
+                    "Month_6": 0.0,
+                    "Month_7": 0.0,
+                    "Month_8": 0.0,
+                    "Month_9": 0.0,
+                    "Month_10": 0.0,
+                    "Month_11": 0.0,
+                    "Month_12": 0.0,
+                },
+            },
+            "city_global_probabilities": {
+                "Ahmedabad": 0.0,
+                "Allahabad": 0.31,
+                "Amritsar": 0.0,
+                "Bangalore": 12.94,
+                "Bengaluru": 0.0,
+                "Bhopal": 0.0,
+                "Bhubeneshwar": 0.0,
+                "Bikenere": 0.14,
+                "Chennai": 2.94,
+                "Darjeeling": 0.0,
+                "Delhi": 0.0,
+                "Delhi NCR": 13.72,
+                "Gandhinagar": 0.03,
+                "Gangtok": 0.0,
+                "Hyderabad": 0.0,
+                "Itanagar": 0.0,
+                "Jamshedpur": 0.0,
+                "Kanpur": 0.0,
+                "Kochi": 0.0,
+                "Kolkata": 69.22,
+                "Kota": 0.0,
+                "Lucknow": 0.0,
+                "Mangalore": 0.0,
+                "Mysore": 0.0,
+                "Nanital": 0.58,
+                "Nashik": 0.08,
+                "Panaji": 0.0,
+                "Patna": 0.03,
+                "Port-Blair": 0.0,
+                "Pune": 0.0,
+                "Shimla": 0.0,
+                "Siliguri": 0.0,
+                "Srinagar": 0.0,
+                "Surat": 0.0,
+                "Trichy": 0.0,
+                "Trivandrum": 0.0,
+                "Vaddodra": 0.0,
+                "Varanasi": 0.0,
+                "Vellore": 0.0,
+                "Vijaywada": 0.0,
+            },
+        },
+        "gemini_recommendation": 'Capitalize on the highly successful market fit of Italian cuisine in the Indiranagar location, which validates the 100% success probability and the substantial sales forecast. Focus immediate operational attention on converting the underlying "median feedback" sentiment into exceptional reviews to stabilize the current 4.8 rating. Sustaining this premium rating is critical; preventing the model\'s predicted decay to 4.07 will ensure the Empire Restaurant unlocks the full $795k monthly sales potential driven by this high-potential area.',
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    print("[*] Starting Uvicorn server...")
+    print("[*] Starting Uvicorn server (MOCK MODE)...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
