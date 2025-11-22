@@ -76,8 +76,6 @@ class SalesFeatures(BaseModel):
 
 
 class RatingFeatures(BaseModel):
-    """Features to predict RF_RATING (Scenario 1)"""
-
     year: int
     month: int
     sales_qty: float
@@ -87,8 +85,6 @@ class RatingFeatures(BaseModel):
 
 
 class SalesPredictFeatures(BaseModel):
-    """Features to predict RF_MONTHLY_SALES (Scenario 2)"""
-
     year: int
     month: int
     sales_qty: float
@@ -98,8 +94,6 @@ class SalesPredictFeatures(BaseModel):
 
 
 class CityRecommendFeatures(BaseModel):
-    """Features to predict RF_CITY_RECOMMEND (Scenario 3)"""
-
     year: int
     month: int
     sales_qty: float
@@ -109,8 +103,6 @@ class CityRecommendFeatures(BaseModel):
 
 
 class SuccessFeatures(BaseModel):
-    """Features to predict RF_SUCCESS_PROB (Scenario 4)"""
-
     year: int
     month: int
     sales_qty: float
@@ -121,13 +113,21 @@ class SuccessFeatures(BaseModel):
 
 
 class MonthRecommendFeatures(BaseModel):
-    """Features to predict RF_MONTH_RECOMMEND (Scenario 5)"""
-
     year: int
     sales_qty: float
     sales_amount: float
     Ratings: float
     City: str
+    Cuisine: str
+
+
+class MatrixFeatures(BaseModel):
+    """Merged Features for Full Grid Prediction"""
+
+    year: int
+    sales_qty: float
+    sales_amount: float
+    Ratings: float
     Cuisine: str
 
 
@@ -173,12 +173,11 @@ async def predict_sales(features: SalesFeatures):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# --- Business Logic RF Endpoints (Refactored) ---
+# --- Business Logic RF Endpoints ---
 
 
 @app.post("/predict/rf_rating")
 async def predict_rf_rating(features: RatingFeatures):
-    """Scenario 1: Predicts Rating based on Sales volume."""
     if "RATING_RF" not in models:
         raise HTTPException(status_code=503, detail="Rating RF Model unavailable")
 
@@ -186,7 +185,6 @@ async def predict_rf_rating(features: RatingFeatures):
         city_enc = models["LE_CITY"].transform([features.City])[0]
         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
 
-        # Training Order: year, month, sales_qty, sales_amount, City_encoded, Cuisine_encoded
         data = pd.DataFrame(
             [
                 {
@@ -204,7 +202,6 @@ async def predict_rf_rating(features: RatingFeatures):
         return {"rf_rating_prediction": float(prediction[0])}
 
     except ValueError as e:
-        # Catch bad input (e.g., "City" or "Cuisine" not in encoder)
         raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"RF Rating Error: {str(e)}")
@@ -212,7 +209,6 @@ async def predict_rf_rating(features: RatingFeatures):
 
 @app.post("/predict/rf_monthly_sales")
 async def predict_rf_monthly_sales(features: SalesPredictFeatures):
-    """Scenario 2: Predicts Sales Amount based on Rating."""
     if "SALES_RF" not in models:
         raise HTTPException(status_code=503, detail="Sales RF Model unavailable")
 
@@ -220,7 +216,6 @@ async def predict_rf_monthly_sales(features: SalesPredictFeatures):
         city_enc = models["LE_CITY"].transform([features.City])[0]
         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
 
-        # Training Order: year, month, sales_qty, Ratings, City_encoded, Cuisine_encoded
         data = pd.DataFrame(
             [
                 {
@@ -245,17 +240,16 @@ async def predict_rf_monthly_sales(features: SalesPredictFeatures):
 
 @app.post("/predict/rf_city_recommend")
 async def predict_rf_city_recommend(features: CityRecommendFeatures):
-    """Scenario 3: Recommends Top 3 Cities based on market data."""
+    """
+    Scenario 3: Recommends Top 3 Cities.
+    (Reverted to Top 3 logic as requested)
+    """
     if "CITY_RF" not in models or "LE_CITY" not in models:
-        raise HTTPException(
-            status_code=503, detail="City RF Model or Encoders unavailable"
-        )
+        raise HTTPException(status_code=503, detail="City RF Model unavailable")
 
     try:
-        # Note: features.City is NOT used here, as it's the target.
         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
 
-        # Training Order: Cuisine_encoded, Ratings, sales_qty, sales_amount, year, month
         data = pd.DataFrame(
             [
                 {
@@ -269,8 +263,10 @@ async def predict_rf_city_recommend(features: CityRecommendFeatures):
             ]
         )
 
+        # Get probabilities
         probs = models["CITY_RF"].predict_proba(data)[0]
 
+        # Sort and slice Top 3
         top3_idx = np.argsort(probs)[-3:][::-1]
         top3_cities = models["LE_CITY"].inverse_transform(top3_idx)
         top3_probs = (probs[top3_idx] * 100).round(2)
@@ -290,7 +286,6 @@ async def predict_rf_city_recommend(features: CityRecommendFeatures):
 
 @app.post("/predict/rf_success_prob")
 async def predict_rf_success_prob(features: SuccessFeatures):
-    """Scenario 4: Predicts Success Probability (%) based on all stats."""
     if "SUCCESS_RF" not in models:
         raise HTTPException(status_code=503, detail="Success RF Model unavailable")
 
@@ -298,7 +293,6 @@ async def predict_rf_success_prob(features: SuccessFeatures):
         city_enc = models["LE_CITY"].transform([features.City])[0]
         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
 
-        # Training Order: Ratings, sales_qty, sales_amount, City_encoded, Cuisine_encoded, year, month
         data = pd.DataFrame(
             [
                 {
@@ -314,7 +308,7 @@ async def predict_rf_success_prob(features: SuccessFeatures):
         )
 
         probs = models["SUCCESS_RF"].predict_proba(data)[0]
-        success_prob = probs[1] * 100  # Prob of class 1 (Success)
+        success_prob = probs[1] * 100
 
         return {
             "success_probability_percentage": round(float(success_prob), 2),
@@ -329,16 +323,13 @@ async def predict_rf_success_prob(features: SuccessFeatures):
 
 @app.post("/predict/rf_month_recommend")
 async def predict_rf_month_recommend(features: MonthRecommendFeatures):
-    """Scenario 5: Recommends Top 3 Months based on market data."""
     if "MONTH_RF" not in models:
         raise HTTPException(status_code=503, detail="Month RF Model unavailable")
 
     try:
-        # Note: features.month is NOT used here, as it's the target.
         city_enc = models["LE_CITY"].transform([features.City])[0]
         cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
 
-        # Training Order: Ratings, sales_qty, sales_amount, City_encoded, Cuisine_encoded, year
         data = pd.DataFrame(
             [
                 {
@@ -353,10 +344,8 @@ async def predict_rf_month_recommend(features: MonthRecommendFeatures):
         )
 
         probs = models["MONTH_RF"].predict_proba(data)[0]
-
-        # Model predicts classes 1-12. Probs array is 0-indexed.
         top3_idx = np.argsort(probs)[-3:][::-1]
-        top3_months = top3_idx + 1  # Convert 0-11 index to 1-12 month
+        top3_months = top3_idx + 1
         top3_probs = (probs[top3_idx] * 100).round(2)
 
         return {
@@ -372,8 +361,239 @@ async def predict_rf_month_recommend(features: MonthRecommendFeatures):
         raise HTTPException(status_code=500, detail=f"Month Model Error: {str(e)}")
 
 
+@app.post("/predict/market_matrix")
+async def predict_market_matrix(features: MatrixFeatures):
+    """
+    Merged Scenario: Generates a full probability matrix.
+    Iterates all 12 months against the City Model to find the probability
+    of EVERY city being the target for EVERY month.
+    Returns:
+        - market_matrix: City -> { Month: Probability }
+        - city_global_probabilities: City -> Average Probability across Year
+    """
+    if "CITY_RF" not in models or "LE_CITY" not in models:
+        raise HTTPException(
+            status_code=503, detail="City RF Model or Encoder unavailable"
+        )
+
+    try:
+        # 1. Encode Cuisine Once
+        cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
+
+        # 2. Get all available cities from the encoder classes
+        all_cities = models["LE_CITY"].classes_
+
+        # 3. Create a batch DataFrame for 12 months
+        # We vectorize this: 12 rows, one for each month.
+        batch_data = []
+        for m in range(1, 13):
+            batch_data.append(
+                {
+                    "Cuisine_encoded": cuisine_enc,
+                    "Ratings": features.Ratings,
+                    "sales_qty": features.sales_qty,
+                    "sales_amount": features.sales_amount,
+                    "year": features.year,
+                    "month": m,
+                }
+            )
+
+        df_batch = pd.DataFrame(batch_data)
+
+        # 4. Run Inference ONCE for the batch (Shape: 12 x N_Cities)
+        # all_probs contains 12 arrays (one per month), each having probabilities for all cities
+        all_probs = models["CITY_RF"].predict_proba(df_batch)
+
+        # 5. Calculate Global Aggregates (Average probability across 12 months)
+        # axis=0 collapses the 12 months into a single mean array of shape (N_cities,)
+        # This represents the "whole" probability for the city across the year.
+        avg_city_probs = np.mean(all_probs, axis=0)
+
+        global_metrics = {
+            city: round(prob * 100, 2) for city, prob in zip(all_cities, avg_city_probs)
+        }
+
+        # 6. Construct the Grid (Transposed: City -> Month)
+        # Initialize dict for every city
+        matrix = {city: {} for city in all_cities}
+
+        for month_idx, month_probs in enumerate(all_probs):
+            month_key = f"Month_{month_idx + 1}"
+
+            # Map probabilities to cities for this specific month
+            for city_idx, city_name in enumerate(all_cities):
+                prob = month_probs[city_idx]
+                matrix[city_name][month_key] = round(prob * 100, 2)
+
+        return {"market_matrix": matrix, "city_global_probabilities": global_metrics}
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Matrix Calculation Error: {str(e)}"
+        )
+
+
+# --- NEW UNIFIED SECTION ---
+
+
+class UnifiedFeatures(BaseModel):
+    """Superset Class for the Unified Endpoint"""
+
+    Resturant_Name: str
+    Cuisine: str
+    Location: str
+    City: str
+    year: int
+    month: int
+    sales_qty: float
+    sales_amount: float
+    Ratings: float
+
+
+@app.post("/predict/unified")
+async def predict_unified(features: UnifiedFeatures):
+    """
+    Runs all models (except redundant recommenders) in one go.
+    """
+    # Check model availability
+    required_models = ["ANN", "DT", "RATING_RF", "SALES_RF", "SUCCESS_RF", "CITY_RF"]
+    if any(m not in models for m in required_models):
+        raise HTTPException(
+            status_code=503, detail="One or more models failed to load."
+        )
+
+    results = {}
+
+    try:
+        # 1. ANN Feedback
+        ann_df = pd.DataFrame(
+            [
+                {
+                    "Resturant_Name": features.Resturant_Name,
+                    "Cuisine": features.Cuisine,
+                    "Location": features.Location,
+                    "City": features.City,
+                }
+            ]
+        )
+        ann_encoded = models["X_ENC"].transform(ann_df)
+        ann_probs = models["ANN"].predict(ann_encoded, verbose=0)
+        ann_index = np.argmax(ann_probs[0])
+        results["feedback_prediction"] = {
+            "feedback_prediction": models["FB_CLASSES"][ann_index]
+        }
+
+        # 2. DT Sales
+        dt_df = pd.DataFrame(
+            [{"sales_qty": features.sales_qty, "Ratings": features.Ratings}]
+        )
+        dt_pred = models["DT"].predict(dt_df)
+        results["high_sales_prediction"] = {"high_sales_prediction": int(dt_pred[0])}
+
+        # Pre-computation for RFs
+        city_enc = models["LE_CITY"].transform([features.City])[0]
+        cuisine_enc = models["LE_CUISINE"].transform([features.Cuisine])[0]
+
+        # 3. RF Rating
+        rf_rating_df = pd.DataFrame(
+            [
+                {
+                    "year": features.year,
+                    "month": features.month,
+                    "sales_qty": features.sales_qty,
+                    "sales_amount": features.sales_amount,
+                    "City_encoded": city_enc,
+                    "Cuisine_encoded": cuisine_enc,
+                }
+            ]
+        )
+        rf_rating_pred = models["RATING_RF"].predict(rf_rating_df)
+        results["rf_rating_prediction"] = {
+            "rf_rating_prediction": float(rf_rating_pred[0])
+        }
+
+        # 4. RF Monthly Sales
+        rf_sales_df = pd.DataFrame(
+            [
+                {
+                    "year": features.year,
+                    "month": features.month,
+                    "sales_qty": features.sales_qty,
+                    "Ratings": features.Ratings,
+                    "City_encoded": city_enc,
+                    "Cuisine_encoded": cuisine_enc,
+                }
+            ]
+        )
+        rf_sales_pred = models["SALES_RF"].predict(rf_sales_df)
+        results["rf_monthly_sales"] = {"rf_sales_prediction": float(rf_sales_pred[0])}
+
+        # 5. RF Success Probability
+        rf_success_df = pd.DataFrame(
+            [
+                {
+                    "Ratings": features.Ratings,
+                    "sales_qty": features.sales_qty,
+                    "sales_amount": features.sales_amount,
+                    "City_encoded": city_enc,
+                    "Cuisine_encoded": cuisine_enc,
+                    "year": features.year,
+                    "month": features.month,
+                }
+            ]
+        )
+        success_probs = models["SUCCESS_RF"].predict_proba(rf_success_df)[0]
+        success_prob_val = success_probs[1] * 100
+        results["rf_success_prob"] = {
+            "success_probability_percentage": round(float(success_prob_val), 2),
+            "is_successful": bool(success_prob_val > 50),
+        }
+
+        # 6. Market Matrix (Vectorized)
+        all_cities = models["LE_CITY"].classes_
+        batch_data = []
+        for m in range(1, 13):
+            batch_data.append(
+                {
+                    "Cuisine_encoded": cuisine_enc,
+                    "Ratings": features.Ratings,
+                    "sales_qty": features.sales_qty,
+                    "sales_amount": features.sales_amount,
+                    "year": features.year,
+                    "month": m,
+                }
+            )
+        df_batch = pd.DataFrame(batch_data)
+        all_probs = models["CITY_RF"].predict_proba(df_batch)
+        avg_city_probs = np.mean(all_probs, axis=0)
+        global_metrics = {
+            city: round(prob * 100, 2) for city, prob in zip(all_cities, avg_city_probs)
+        }
+        matrix = {city: {} for city in all_cities}
+        for month_idx, month_probs in enumerate(all_probs):
+            month_key = f"Month_{month_idx + 1}"
+            for city_idx, city_name in enumerate(all_cities):
+                prob = month_probs[city_idx]
+                matrix[city_name][month_key] = round(prob * 100, 2)
+
+        results["market_matrix"] = {
+            "market_matrix": matrix,
+            "city_global_probabilities": global_metrics,
+        }
+
+        return results
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Bad Payload: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unified Error: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
 
     print("[*] Starting Uvicorn server...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
