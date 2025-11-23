@@ -13,18 +13,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 
 const HomePage = () => {
-  const methods = useForm<mainFormData>({
-    defaultValues: {
-      city: "Bengaluru",
-      cuisine: "Fast Food",
-      location: "Indiranagar",
-      date: parseDate("2025-11-17"),
-      rating: 5.0,
-      restaurantName: "Best Restaurant",
-      salesAmount: 400,
-      salesQuantity: 4000,
-    },
-  });
+  const methods = useForm<mainFormData>({});
   const [tabState, setTabState] = useState<string>("form");
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
