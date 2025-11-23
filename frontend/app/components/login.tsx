@@ -43,25 +43,6 @@ const Login = () => {
     ) {
       push("/home");
     } else {
-      const example = allowedCredentials[0];
-      addToast({
-        title: "Incorrect credentials!",
-        color: "danger",
-        timeout: 5000,
-        endContent: (
-          <Button
-            variant="ghost"
-            color="danger"
-            onPress={() => {
-              setValue("email", example.email);
-              setValue("password", example.password);
-            }}
-          >
-            Autofill
-          </Button>
-        ),
-        description: `Try email "${example.email}" and password "${example.password}"`,
-      });
     }
   };
 

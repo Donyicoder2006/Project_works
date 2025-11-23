@@ -2,6 +2,8 @@
 import { Controller, useFormContext } from "react-hook-form";
 import { mainFormData } from "../types/main-form-data";
 import {
+  Autocomplete,
+  AutocompleteItem,
   Button,
   DatePicker,
   Input,
@@ -38,16 +40,16 @@ const MainForm = ({ onSubmit }: Props) => {
             label="Restaurant Name"
             {...register("restaurantName", { required: true })}
           />
-          <Select
+          <Autocomplete
             isVirtualized
             label={"Cuisine"}
             placeholder="Select..."
             {...register("cuisine", { required: true })}
           >
             {cuisineList.map((cuisine: string) => (
-              <SelectItem key={cuisine}>{cuisine}</SelectItem>
+              <AutocompleteItem key={cuisine}>{cuisine}</AutocompleteItem>
             ))}
-          </Select>
+          </Autocomplete>
         </div>
         <div className="flex space-x-2">
           <Input
@@ -75,6 +77,7 @@ const MainForm = ({ onSubmit }: Props) => {
             rules={{ required: true }}
             render={({ field }) => (
               <Slider
+                color="warning"
                 defaultValue={5000}
                 label="Sales Amount"
                 maxValue={10000}
@@ -92,6 +95,7 @@ const MainForm = ({ onSubmit }: Props) => {
             render={({ field }) => (
               <Slider
                 defaultValue={5000}
+                color="warning"
                 label="Sales Quantity"
                 maxValue={10000}
                 minValue={0}
@@ -121,6 +125,7 @@ const MainForm = ({ onSubmit }: Props) => {
             render={({ field }) => (
               <Slider
                 defaultValue={5000}
+                color="warning"
                 label="Rating"
                 maxValue={5}
                 minValue={1}

@@ -10,8 +10,10 @@ import SuccessChart from "./charts/success-chart";
 import UserDetails from "./charts/user-details";
 import useSWR from "swr";
 import { unifiedApi } from "../types/api-types";
-import { CircularProgress } from "@heroui/react";
+import { Card, CardBody, CircularProgress } from "@heroui/react";
 import Insight from "./charts/insight";
+import { CircleXIcon } from "lucide-react";
+import FoodImageRecognizer from "./charts/food-image-recognizer";
 
 const fetcher = ([url, payload]: [url: string, payload: mainFormData]) =>
   fetch(url, {
@@ -40,11 +42,25 @@ const Result = () => {
 
   if (isLoading)
     return (
-      <div>
-        <CircularProgress />
+      <div className="w-full p-3 flex items-center space-x-5">
+        <CircularProgress size="md" />
+        <p className="text-default-400 dark:text-default-400 text-2xl">
+          Hold on... we're spicing up your predictions!
+        </p>
       </div>
     );
-  if (!data) return <div>Not found</div>;
+  if (!data)
+    return (
+      <Card>
+        <CardBody className="justify-center items-center py-5 space-y-2">
+          <CircleXIcon color="var(--color-red-400)" size={80} />
+          <p className="text-3xl text-red-300">Could not load models!</p>
+          <p className="text-lg text-red-300">
+            Please ensure you have access to the models API
+          </p>
+        </CardBody>
+      </Card>
+    );
 
   return (
     <div className="grid grid-cols-6 gap-2 grid-flow-dense">
@@ -55,6 +71,7 @@ const Result = () => {
       <CityChart data={data} />
       <MonthChart data={data} />
       <Insight data={data} />
+      <FoodImageRecognizer />
     </div>
   );
 };
